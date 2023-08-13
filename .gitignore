@@ -160,4 +160,4 @@ cython_debug/
 .idea/
 *.apkg
 *.xlsx
-.media
+.media/
