@@ -1,14 +1,18 @@
+from dataclasses import dataclass, field
+
 import scrapy
 
 
-class Card(scrapy.Item):
-    front = scrapy.Field()
-    back = scrapy.Field()
-    image = scrapy.Field()
-    f_audio = scrapy.Field()
-    b_audio = scrapy.Field()
+@dataclass
+class Card:
+    front: str
+    back: str
+    image: str
+    f_audio: str
+    b_audio: str
 
 
-class Deck(scrapy.Item):
-    title: str = scrapy.Field()
-    cards: list[Card] = []
+@dataclass
+class Deck:
+    title: str
+    cards: list = field(default_factory=list)

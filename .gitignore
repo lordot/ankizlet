@@ -161,3 +161,4 @@ cython_debug/
 *.apkg
 *.xlsx
 .media/
+results/
