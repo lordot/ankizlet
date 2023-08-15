@@ -2,6 +2,7 @@ import re
 from time import sleep
 
 import scrapy.http
+from scrapy.exceptions import IgnoreRequest
 from scrapy.http import HtmlResponse
 from selenium.common import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
@@ -44,7 +45,7 @@ class SeleniumMiddleware:
             spider.driver.get(API_URL.format(url_id))
             data = spider.driver.find_element(By.TAG_NAME, "pre").text
 
-            spider.logger.info(f"API url: {API_URL.format(url_id)}")
+            spider.logger.info(f"Loaded API URL: {API_URL.format(url_id)}")
 
             return HtmlResponse(
                 url=request.url,
@@ -55,8 +56,8 @@ class SeleniumMiddleware:
             )
 
         except TimeoutException:
-            print("Timed out waiting for page to load")
-            return None
+            spider.logger.error(f"Timed out waiting for page to load: {request.url}")
+            raise IgnoreRequest()
 
     def process_response(self, request: scrapy.Request, response, spider):
         # Called with the response returned from the downloader.

@@ -1,8 +1,13 @@
+import os
+import re
 from os.path import dirname, realpath
 import random
+import shutil
+
 
 import genanki
 from genanki import Model, Package
+
 
 import urllib.request as urllib2
 
@@ -11,6 +16,7 @@ from quizlet.items import Deck
 
 SPEED = 100
 MEDIA_DIR = dirname(dirname(realpath(__file__))) + "\\.media\\"
+RESULTS_DIR = dirname(dirname(realpath(__file__))) + "\\results\\"
 AUDIO_PREFIX = "https://quizlet.com"
 MODEL_ID = random.randrange(1 << 30, 1 << 31)
 RESIZER = "https://quizlet.com/cdn-cgi/image/f=auto,fit=cover,h=200,onerror=redirect,w=220/"
@@ -39,7 +45,7 @@ MODEL = Model(
         #     "name": "Reverse",
         #     "qfmt": "{{BackText}}\n<br><br>\n{{BackAudio}}",
         #     "afmt": "{{BackText}}\n<hr id=answer>\n{{FrontText}}\n<br><br>\n{{FrontAudio}}\n{{Image}}"
-        # }
+        # } # TODO: добавить возможность сохранять реверс карту
     ],
     css=".card {font-family: arial; font-size: 20px; text-align: center; color: black; background-color: white;}"
 )
@@ -47,12 +53,21 @@ MODEL = Model(
 
 class DecksPipeline:
 
-    def open_spider(self, spider):
+    def __init__(self):
+        self.media_files = []
         self.decks = []
-        self.media_files = []  # TODO: сделать проверку и создание папки .media
+
+    def open_spider(self, spider):
+        os.makedirs(MEDIA_DIR, exist_ok=True)
+        os.makedirs(RESULTS_DIR, exist_ok=True)
+        self.per_file = spider.settings.get("PER_FILE")
 
     def process_item(self, item: Deck, spider):
-        deck = genanki.Deck(self._get_deck_id(), "Root::" + item["title"])
+        title = item["title"]
+        if not self.per_file:
+            title = "Root::" + title
+
+        deck = genanki.Deck(self._get_deck_id(), title)
 
         for card in item.cards:
             f_audio, b_audio, image = '', '', ''  # TODO: переделать Item в dataclass
@@ -87,13 +102,23 @@ class DecksPipeline:
             deck.add_note(card)
 
         self.decks.append(deck)
+        if self.per_file:
+            title = re.sub(r'[\\/:"*?<>|]+', "", title)
+            package = genanki.Package(self.decks)
+            package.media_files = self.media_files
+            package.write_to_file(RESULTS_DIR + title + ".apkg")
+            self.decks.clear()
+            self.media_files.clear()
+
         spider.logger.info(f"Deck's saved: {deck.name}")
         return item
 
     def close_spider(self, spider):
-        package = genanki.Package(self.decks)
-        package.media_files = self.media_files
-        package.write_to_file('output.apkg')  # TODO: добавить очистку папки .media
+        if not self.per_file:
+            package = genanki.Package(self.decks)
+            package.media_files = self.media_files
+            package.write_to_file(RESULTS_DIR + "output.apkg")
+        shutil.rmtree(MEDIA_DIR)
 
     def _get_deck_id(self):
         return random.randrange(1 << 30, 1 << 31)
@@ -108,4 +133,4 @@ class DecksPipeline:
                     f.write(r.read())
             return fl_name
         except urllib2.HTTPError as e:
-            spider.logger.error(f"Bad URL: {url}")
+            spider.logger.warning(f"Bad URL for media item: {url}")

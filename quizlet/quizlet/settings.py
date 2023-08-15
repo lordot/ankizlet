@@ -1,5 +1,7 @@
 BOT_NAME = "quizlet"
 
+PER_FILE = False
+
 LOG_LEVEL = 'INFO'
 
 HTTPCACHE_ENABLED = False
