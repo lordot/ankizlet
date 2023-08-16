@@ -1,5 +1,6 @@
 import json
 
+import numpy as np
 import pandas as pd
 import scrapy
 import undetected_chromedriver as uc
@@ -20,8 +21,8 @@ class CardsSpider(scrapy.Spider):
         data = pd.read_excel('file.xlsx')
 
         for _, row in data.iterrows():
-            url = row['Cards']
-            password = row.get('Password', None)
+            url = row.get('Cards')
+            password = str(row.get('Password'))
 
             yield scrapy.Request(
                 url, self.parse, cb_kwargs=dict(password=password)

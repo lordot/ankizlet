@@ -10,6 +10,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
+from undetected_chromedriver import WebElement
 
 API_URL = "https://quizlet.com/webapi/3.9/" \
           "studiable-item-documents?filters%5BstudiableContainerId%5D={}" \
@@ -17,6 +18,7 @@ API_URL = "https://quizlet.com/webapi/3.9/" \
 
 
 class SeleniumMiddleware:
+    timeout = 6
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -26,25 +28,23 @@ class SeleniumMiddleware:
 
     def process_request(self, request: scrapy.Request, spider):
         spider.driver.get(request.url)
+        password = request.cb_kwargs["password"]
 
-        if password := request.cb_kwargs["password"]:
-            actions = ActionChains(spider.driver)
-            actions.send_keys(password)
-            actions.perform()
-            actions.send_keys(Keys.ENTER)
-            actions.perform()
+        if password != "nan":
+            self._enter_password(spider.driver, password)
 
-        timeout = 6
         try:
-            element_present = EC.presence_of_element_located((By.TAG_NAME, 'h1'))  # TODO: сделать проверку на пароль
-            WebDriverWait(spider.driver, timeout).until(element_present)
-            h1 = spider.driver.find_element(By.TAG_NAME, "h1").text
-            url_id = re.search(r"/(\d+)/", spider.driver.current_url).group(1)
+            element_present = EC.presence_of_element_located(
+                (By.TAG_NAME, 'h1'))  # TODO: сделать проверку на пароль
+            WebDriverWait(spider.driver, self.timeout).until(element_present)
 
-            spider.driver.get(API_URL.format(url_id))
+            h1 = spider.driver.find_element(By.TAG_NAME, "h1").text
+            deck_id = re.search(r"/(\d+)/", spider.driver.current_url).group(1)
+
+            spider.driver.get(API_URL.format(deck_id))
             data = spider.driver.find_element(By.TAG_NAME, "pre").text
 
-            spider.logger.info(f"Loaded API URL: {API_URL.format(url_id)}")
+            spider.logger.info(f"Loaded API URL: {API_URL.format(deck_id)}")
 
             return HtmlResponse(
                 url=request.url,
@@ -55,7 +55,18 @@ class SeleniumMiddleware:
             )
 
         except TimeoutException:
-            spider.logger.error(f"Timed out for page to load: {request.url}")
+            label = spider.driver.find_elements(
+                By.CSS_SELECTOR, "label.UIInput"
+            )
+
+            if label and label.get_attribute('aria-invalid'):
+                spider.logger.error(f"Wrong password for page: {request.url}")
+            elif label:
+                spider.logger.error(
+                    f"Need password for page: {request.url}")
+            else:
+                spider.logger.error(
+                    f"Timed out for page to load: {request.url}")
             raise IgnoreRequest()
 
     def process_response(self, request: scrapy.Request, response, spider):
@@ -66,3 +77,10 @@ class SeleniumMiddleware:
 
     def spider_opened(self, spider):
         spider.logger.info("Spider opened: %s" % spider.name)
+
+    def _enter_password(self, driver, password):
+        actions = ActionChains(driver)
+        actions.send_keys(password)
+        actions.perform()
+        actions.send_keys(Keys.ENTER)
+        actions.perform()
