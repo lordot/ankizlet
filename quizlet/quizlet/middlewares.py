@@ -5,6 +5,7 @@ from scrapy import signals
 from scrapy.exceptions import IgnoreRequest
 from scrapy.http import HtmlResponse
 from selenium.common import TimeoutException
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -27,13 +28,13 @@ class SeleniumMiddleware:
         return s
 
     def process_request(self, request: scrapy.Request, spider):
-        spider.driver.get(request.url)
-        password = request.cb_kwargs["password"]
-
-        if password != "nan":
-            self._enter_password(spider.driver, password)
-
         try:
+            spider.driver.get(request.url)
+            password = request.cb_kwargs["password"]
+
+            if password != "nan":
+                self._enter_password(spider.driver, password)
+
             element_present = EC.presence_of_element_located(
                 (By.TAG_NAME, 'h1'))  # TODO: сделать проверку на пароль
             WebDriverWait(spider.driver, self.timeout).until(element_present)
@@ -54,12 +55,12 @@ class SeleniumMiddleware:
                 encoding='utf8'
             )
 
-        except TimeoutException:
+        except WebDriverException:
             label = spider.driver.find_elements(
                 By.CSS_SELECTOR, "label.UIInput"
             )
 
-            if label and label.get_attribute('aria-invalid'):
+            if label and label[0].get_attribute('aria-invalid'):
                 spider.logger.error(f"Wrong password for page: {request.url}")
             elif label:
                 spider.logger.error(
