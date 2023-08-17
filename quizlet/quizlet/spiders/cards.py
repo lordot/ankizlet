@@ -1,9 +1,9 @@
 import json
 
-import numpy as np
 import pandas as pd
 import scrapy
 import undetected_chromedriver as uc
+import validators
 from scrapy.http import Response
 
 from quizlet.items import Card, Deck
@@ -12,21 +12,31 @@ from quizlet.items import Card, Deck
 class CardsSpider(scrapy.Spider):
     name = "cards"
 
-    def __init__(self, **kwargs):
+    def __init__(self, urls="", **kwargs):
         super().__init__(**kwargs)
-        self.driver = uc.Chrome(headless=True, use_subprocess=False)
+        self.driver = uc.Chrome(headless=True, use_subprocess=True)
         self.logger.info("Chrome driver is opened")
+        self.urls = tuple(url.split(" ") for url in urls.split(";"))
 
     def start_requests(self):
-        data = pd.read_excel('file.xlsx')
+        # data = pd.read_excel("file.xlsx")
+        # for _, row in data.iterrows():
+        #     url = str(row.get("Cards"))
+        #     password = str(row.get("Password"))
 
-        for _, row in data.iterrows():
-            url = row.get('Cards')
-            password = str(row.get('Password'))
+        for _, row in enumerate(self.urls):
+            password = "nan"
+            url = row[0]
 
-            yield scrapy.Request(
-                url, self.parse, cb_kwargs=dict(password=password)
-            )
+            if len(row) > 1:
+                password = row[1]
+
+            if validators.url(url):
+                yield scrapy.Request(
+                    url, self.parse, cb_kwargs=dict(password=password)
+                )
+            else:
+                self.logger.error(f"Invalid URL in row: {_}")
 
     def parse(self, response: Response, **kwargs):
         json_response: dict = json.loads(response.text)
@@ -46,14 +56,16 @@ class CardsSpider(scrapy.Spider):
                          f"; total cards: {len(deck.cards)}")
         yield deck
 
-    def _create_card(self, item):
+    def _create_card(self,
+                     item):  # TODO: добавить возможность отключать аудио с разных сторон
         f_side = item["cardSides"][0]["media"][0]
         b_side = item["cardSides"][1]["media"][0]
         f_word = f_side["plainText"]
         b_word = b_side["plainText"]
         f_audio = f_side["ttsSlowUrl"]
         b_audio = b_side["ttsSlowUrl"]
-        img = item["cardSides"][1]["media"][1]["url"] if len(item["cardSides"][1]["media"]) > 1 else ""
+        img = item["cardSides"][1]["media"][1]["url"] if len(
+            item["cardSides"][1]["media"]) > 1 else ""
 
         return Card(
             front=f_word if f_word else "",

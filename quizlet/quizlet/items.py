@@ -1,7 +1,5 @@
 from dataclasses import dataclass, field
 
-import scrapy
-
 
 @dataclass
 class Card:

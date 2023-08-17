@@ -4,18 +4,16 @@ import scrapy.http
 from scrapy import signals
 from scrapy.exceptions import IgnoreRequest
 from scrapy.http import HtmlResponse
-from selenium.common import TimeoutException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.wait import WebDriverWait
-from undetected_chromedriver import WebElement
 
-API_URL = "https://quizlet.com/webapi/3.9/" \
-          "studiable-item-documents?filters%5BstudiableContainerId%5D={}" \
-          "&filters%5BstudiableContainerType%5D=1&perPage=1000&page=1"
+API_URL = ("https://quizlet.com/webapi/3.9/"
+           "studiable-item-documents?filters%5BstudiableContainerId%5D={}"
+           "&filters%5BstudiableContainerType%5D=1&perPage=1000&page=1")
 
 
 class SeleniumMiddleware:
@@ -35,12 +33,18 @@ class SeleniumMiddleware:
             if password != "nan":
                 self._enter_password(spider.driver, password)
 
-            element_present = EC.presence_of_element_located(
-                (By.TAG_NAME, 'h1'))  # TODO: сделать проверку на пароль
+            element_present = ec.presence_of_element_located(
+                (By.TAG_NAME, 'h1'))
             WebDriverWait(spider.driver, self.timeout).until(element_present)
 
             h1 = spider.driver.find_element(By.TAG_NAME, "h1").text
-            deck_id = re.search(r"/(\d+)/", spider.driver.current_url).group(1)
+
+            try:
+                deck_id = re.search(r"/(\d+)/",
+                                    spider.driver.current_url).group(1)
+            except AttributeError:
+                spider.logger.error(f"No deck on URL: {request.url}")
+                raise IgnoreRequest()
 
             spider.driver.get(API_URL.format(deck_id))
             data = spider.driver.find_element(By.TAG_NAME, "pre").text

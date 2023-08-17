@@ -6,7 +6,7 @@ from os import makedirs
 from os.path import dirname, join, realpath
 
 import genanki
-from genanki import Model, Package
+from genanki import Model
 
 
 class DecksPipeline:
@@ -56,7 +56,7 @@ class DecksPipeline:
     def process_item(self, item, spider):
         title = item.title
         if not self.per_file:
-            title = "Root::" + title
+            title = "Ankizlet::" + title
 
         deck = genanki.Deck(self._get_random_id(), title)
 
@@ -67,7 +67,7 @@ class DecksPipeline:
                     card.image = f"<div><img src='{img_name}'></div>"
                     self.media_files.append(f".media/{img_name}")
 
-            for audio_type, audio_attr in [("f_audio", "FrontAudio"), ("b_audio", "BackAudio")]:
+            for audio_type in ("f_audio", "b_audio"):
                 if getattr(card, audio_type) != "":
                     audio_name = self._file_download(
                         self.audio_prefix + getattr(card, audio_type), spider, ".mp3"
@@ -114,7 +114,7 @@ class DecksPipeline:
                 with open(join(self.media_dir, file_name), 'wb') as f:
                     f.write(response.read())
             return file_name
-        except urllib2.HTTPError as e:
+        except urllib2.HTTPError:
             spider.logger.warning(f"Bad URL for media item: {url}")
             return None
 
