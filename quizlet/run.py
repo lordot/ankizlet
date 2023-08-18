@@ -1,8 +1,7 @@
 import sys
-
-from PyQt5.QtGui import QTextCursor
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTextEdit, QPushButton, QVBoxLayout, QWidget, QCheckBox, QLabel
-import subprocess
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTextEdit, QPushButton, QVBoxLayout, QWidget, QLabel, QLineEdit, QCheckBox
+from PyQt5.QtCore import Qt, QTimer
+from subprocess import Popen, PIPE
 import threading
 
 
@@ -14,7 +13,7 @@ class ScrapyGUI(QMainWindow):
 
     def init_ui(self):
         screen_size = QApplication.primaryScreen().availableSize()
-        self.resize(screen_size.width() // 2, screen_size.height() // 2)
+        self.resize(screen_size.width() // 3, screen_size.height() // 3)
 
         self.setWindowTitle('Scrapy GUI')
 
@@ -30,21 +29,21 @@ class ScrapyGUI(QMainWindow):
         self.start_button.setEnabled(False)
         self.start_button.clicked.connect(self.start_scrapy)
 
-        self.deck_saved_count = 0
-        self.deck_saved_label = QLabel("Deck saved count: 0", self)
-
         layout = QVBoxLayout()
         layout.addWidget(self.url_textedit)
         layout.addWidget(self.deck_checkbox)
         layout.addWidget(self.log_textedit)
         layout.addWidget(self.start_button)
-        layout.addWidget(self.deck_saved_label)
 
         central_widget = QWidget()
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
 
         self.url_textedit.textChanged.connect(self.enable_start_button)
+
+        self.refresh_timer = QTimer(self)
+        self.refresh_timer.timeout.connect(self.refresh_log)
+        self.refresh_timer.start(3000)  # Обновление каждые 3000 миллисекунд (3 секунды)
 
     def enable_start_button(self):
         text = self.url_textedit.toPlainText()
@@ -53,8 +52,6 @@ class ScrapyGUI(QMainWindow):
     def start_scrapy(self):
         self.start_button.setEnabled(False)
         self.log_textedit.clear()
-        self.deck_saved_count = 0  # Reset the count
-        self.update_deck_saved_label()
 
         urls = self.url_textedit.toPlainText().split('\n')
         urls = [url.strip() for url in urls if url.strip()]
@@ -65,31 +62,29 @@ class ScrapyGUI(QMainWindow):
         if deck_per_file:
             args.extend(['-s', 'PER_FILE=True'])
 
-        process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, universal_newlines=True)
-
-        def capture_output():
-            with process.stdout:
-                for line in iter(process.stdout.readline, ''):
-                    self.log_textedit.moveCursor(
-                        QTextCursor.End)
-                    self.log_textedit.insertPlainText(line)
-                    if "Deck saved" in line:
-                        self.deck_saved_count += 1
-                        self.update_deck_saved_label()
-            process.wait()
+        def run_scrapy():
+            process = Popen(args, stdout=PIPE, stderr=PIPE, text=True)
+            for line in process.stdout:
+                self.log_textedit.append(line.strip())
+            process.communicate()
 
             if process.returncode == 0:
                 result = "Finished"
             else:
-                result = f"Error: An error occurred while running Scrapy."
+                result = f"Error: {process.stderr.read()}"
 
             self.log_textedit.append(result)
-            self.start_button.setEnabled(True)
+        self.start_button.setEnabled(True)
 
-        threading.Thread(target=capture_output).start()
+        threading.Thread(target=run_scrapy).start()
 
-    def update_deck_saved_label(self):
-        self.deck_saved_label.setText(f"Deck saved count: {self.deck_saved_count}")
+    def refresh_log(self):
+        try:
+            with open('scrapy.log', 'r') as log_file:
+                log_content = log_file.read()
+                self.log_textedit.setPlainText(log_content)
+        except FileNotFoundError:
+            self.log_textedit.setPlainText("No log file found.")
 
 
 if __name__ == '__main__':
