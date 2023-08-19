@@ -1,6 +1,5 @@
 import json
 
-import pandas as pd
 import scrapy
 import undetected_chromedriver as uc
 import validators
@@ -19,11 +18,6 @@ class CardsSpider(scrapy.Spider):
         self.urls = tuple(url.split(" ") for url in urls.split(";"))
 
     def start_requests(self):
-        # data = pd.read_excel("file.xlsx")
-        # for _, row in data.iterrows():
-        #     url = str(row.get("Cards"))
-        #     password = str(row.get("Password"))
-
         for _, row in enumerate(self.urls):
             password = "nan"
             url = row[0]
@@ -56,8 +50,7 @@ class CardsSpider(scrapy.Spider):
                          f"; total cards: {len(deck.cards)}")
         yield deck
 
-    def _create_card(self,
-                     item):  # TODO: добавить возможность отключать аудио с разных сторон
+    def _create_card(self, item):  # TODO: добавить возможность отключать аудио с разных сторон
         f_side = item["cardSides"][0]["media"][0]
         b_side = item["cardSides"][1]["media"][0]
         f_word = f_side["plainText"]

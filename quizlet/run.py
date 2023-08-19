@@ -1,13 +1,12 @@
 import re
+import subprocess
 import sys
 
 from PyQt5 import QtCore
 from PyQt5.QtGui import QTextCursor
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QTextEdit, QPushButton,
-                             QVBoxLayout, QWidget, QCheckBox, QLabel,
-                             QHBoxLayout)
-import subprocess
-
+from PyQt5.QtWidgets import (QApplication, QCheckBox, QHBoxLayout, QLabel,
+                             QMainWindow, QPushButton, QTextEdit, QVBoxLayout,
+                             QWidget)
 
 
 class ScrapyWorker(QtCore.QObject):
@@ -52,7 +51,8 @@ class ScrapyWorker(QtCore.QObject):
             for state in ("Saved: ", "Timeout: ", "Wrong password: "):
                 if state in line:
                     try:
-                        deck_name = re.match(rf"^.*: {state}(.*)", line).group(1)
+                        deck_name = re.match(rf"^.*: {state}(.*)", line).group(
+                            1)
                         self.update_log.emit(state + deck_name + "\n")
                     except:
                         pass
@@ -116,7 +116,8 @@ class ScrapyGUI(QMainWindow):
         self.log_states = {
             "Saved: ": [self.deck_saved_count, self.deck_saved_label],
             "Timeout: ": [self.deck_timeout_count, self.deck_timeout_label],
-            "Wrong password: ": [self.deck_wrongpass_count, self.deck_wrongpass_label]
+            "Wrong password: ": [self.deck_wrongpass_count,
+                                 self.deck_wrongpass_label]
         }
 
         horizontal_layout = QHBoxLayout()
@@ -161,7 +162,8 @@ class ScrapyGUI(QMainWindow):
             self.log_states[state[0]][0] += 1
         else:
             self.log_states[state[0]][0] = 0
-        self.log_states[state[0]][1].setText(f"{state[0]}{self.log_states[state[0]][0]}")
+        self.log_states[state[0]][1].setText(
+            f"{state[0]}{self.log_states[state[0]][0]}")
 
     @QtCore.pyqtSlot(str)
     def updateLog(self, text: str):
