@@ -1,4 +1,5 @@
 import json
+from typing import Generator, Iterator
 
 import scrapy
 import undetected_chromedriver as uc
@@ -11,15 +12,15 @@ from quizlet.items import Card, Deck
 class CardsSpider(scrapy.Spider):
     name = "cards"
 
-    def __init__(self, urls="", **kwargs):
+    def __init__(self, urls: Generator | Iterator, **kwargs):
         super().__init__(**kwargs)
         self.driver = uc.Chrome(headless=True, use_subprocess=True)
         self.logger.info("Chrome driver is opened")
-        self.urls = tuple(url.split(" ") for url in urls.split(";"))
+        self.urls = urls
 
     def start_requests(self):
-        for _, row in enumerate(self.urls):
-            password = "nan"
+        for row in self.urls:
+            password = None
             url = row[0]
 
             if len(row) > 1:
@@ -30,7 +31,7 @@ class CardsSpider(scrapy.Spider):
                     url, self.parse, cb_kwargs=dict(password=password)
                 )
             else:
-                self.logger.error(f"Invalid URL: {_}")
+                self.logger.error(f"Invalid URL: {url}")
 
     def parse(self, response: Response, **kwargs):
         json_response: dict = json.loads(response.text)

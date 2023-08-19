@@ -54,6 +54,7 @@ class DecksPipeline:
         self.per_file = spider.settings.get("PER_FILE")
 
     def process_item(self, item, spider):
+        card_counter = 0
         title = item.title
         if not self.per_file:
             title = "Ankizlet::" + title

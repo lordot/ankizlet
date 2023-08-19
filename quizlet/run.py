@@ -1,12 +1,22 @@
-import re
-import subprocess
 import sys
+
+from scrapy import signals
+from scrapy.crawler import CrawlerProcess, CrawlerRunner
+from scrapy.utils.log import configure_logging
+from scrapy.utils.project import get_project_settings
+from twisted.internet import reactor
+from pydispatch import dispatcher
+from scrapy.crawler import CrawlerRunner
+from scrapy.utils.log import configure_logging
+from twisted.internet import reactor
 
 from PyQt5 import QtCore
 from PyQt5.QtGui import QTextCursor
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QHBoxLayout, QLabel,
                              QMainWindow, QPushButton, QTextEdit, QVBoxLayout,
                              QWidget)
+
+from quizlet.spiders.cards import CardsSpider
 
 
 class ScrapyWorker(QtCore.QObject):
@@ -30,34 +40,18 @@ class ScrapyWorker(QtCore.QObject):
         self.run_process(args[0], args[1])
 
     def run_process(self, urls, per_file):
-        for state in ("Saved: ", "Timeout: ", "Wrong password: "):
-            self.update_label.emit([state, False])
         self.update_button.emit(["In progress...", False])
-        self.clear_log.emit()
 
-        args = ['scrapy', 'crawl', 'cards', '-a', f'urls={";".join(urls)}']
-        if per_file:
-            args.extend(['-s', 'PER_FILE=True'])
+        def deck_name(signal, sender, item, response, spider):
+            print(item.title)  # TODO: это должен быть сингал в GUI
 
-        process = subprocess.Popen(
-            args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, bufsize=1, universal_newlines=True, encoding="utf-8"
-        )
+        configure_logging({"LOG_FORMAT": "%(levelname)s: %(message)s"})
+        dispatcher.connect(deck_name, signal=signals.item_scraped)  # TODO: нужны сигналы для подсчета колод и карт
+        runner = CrawlerRunner(get_project_settings())
 
-        while True:
-            line = process.stdout.readline()
-            if not line:
-                break
-            for state in ("Saved: ", "Timeout: ", "Wrong password: "):
-                if state in line:
-                    try:
-                        deck_name = re.match(rf"^.*: {state}(.*)", line).group(
-                            1)
-                        self.update_log.emit(state + deck_name + "\n")
-                    except:
-                        pass
-                    self.update_label.emit([state, True])
-        process.wait()
+        d = runner.crawl(CardsSpider, urls=urls)  # TODO: нужно переделать в пауке PER_FILE в локальную переменную
+        d.addBoth(lambda _: reactor.stop())
+        reactor.run(installSignalHandlers=False)
 
         self.update_button.emit(["Start", True])
 
@@ -89,7 +83,7 @@ class ScrapyGUI(QMainWindow):
 
         self.url_textedit = QTextEdit(self)
         self.url_textedit.setPlaceholderText(
-            "Enter URLs and passwords (if any) separated by space, "
+            "Enter URLs and passwords (if any) separated by space, "  # TODO: тут должен быть пример
             "next URLs on new lines..."
         )
 
@@ -113,7 +107,7 @@ class ScrapyGUI(QMainWindow):
         self.deck_incorrect_count = 0
         self.deck_incorrect_label = QLabel("Invalid URL: 0", self)
 
-        self.log_states = {
+        self.log_states = {  # TODO: это нафиг
             "Saved: ": [self.deck_saved_count, self.deck_saved_label],
             "Timeout: ": [self.deck_timeout_count, self.deck_timeout_label],
             "Wrong password: ": [self.deck_wrongpass_count,
@@ -146,7 +140,7 @@ class ScrapyGUI(QMainWindow):
     @QtCore.pyqtSlot()
     def sendArgs(self):
         urls = self.url_textedit.toPlainText().split('\n')
-        urls = [url.strip() for url in urls if url.strip()]
+        urls = (url.split(" ") for url in urls if url != "")
 
         deck_per_file = self.deck_checkbox.isChecked()
         self.worker.args.emit([urls, deck_per_file])
@@ -157,7 +151,7 @@ class ScrapyGUI(QMainWindow):
         self.start_button.setEnabled(button_list[1])
 
     @QtCore.pyqtSlot(list)
-    def updateLabel(self, state):
+    def updateLabel(self, state):  # TODO: все переделать под сигналы с воркера
         if state[1]:
             self.log_states[state[0]][0] += 1
         else:

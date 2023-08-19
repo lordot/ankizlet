@@ -30,7 +30,7 @@ class SeleniumMiddleware:
             spider.driver.get(request.url)
             password = request.cb_kwargs["password"]
 
-            if password != "nan":
+            if password:
                 self._enter_password(spider.driver, password)
 
             element_present = ec.presence_of_element_located(
