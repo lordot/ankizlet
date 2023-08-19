@@ -36,7 +36,7 @@ class CardsSpider(scrapy.Spider):
                     url, self.parse, cb_kwargs=dict(password=password)
                 )
             else:
-                self.logger.error(f"Invalid URL in row: {_}")
+                self.logger.error(f"Invalid URL: {_}")
 
     def parse(self, response: Response, **kwargs):
         json_response: dict = json.loads(response.text)

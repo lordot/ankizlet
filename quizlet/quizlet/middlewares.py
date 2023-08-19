@@ -65,13 +65,13 @@ class SeleniumMiddleware:
             )
 
             if label and label[0].get_attribute('aria-invalid'):
-                spider.logger.error(f"Wrong password for page: {request.url}")
+                spider.logger.error(f"Wrong password: {request.url}")
             elif label:
                 spider.logger.error(
-                    f"Need password for page: {request.url}")
+                    f"Wrong password: {request.url}")
             else:
                 spider.logger.error(
-                    f"Timed out for page to load: {request.url}")
+                    f"Timeout: {request.url}")
             raise IgnoreRequest()
 
     def process_response(self, request: scrapy.Request, response, spider):

@@ -92,7 +92,7 @@ class DecksPipeline:
             self.decks.clear()
             self.media_files.clear()
 
-        spider.logger.info(f"Deck saved: {deck.name}")
+        spider.logger.info(f"Saved: {deck.name}")
         return item
 
     def close_spider(self, spider):
