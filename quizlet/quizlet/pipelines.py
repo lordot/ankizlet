@@ -8,6 +8,8 @@ from os.path import dirname, join, realpath
 import genanki
 from genanki import Model
 
+from quizlet import signalizers
+
 
 class DecksPipeline:
 
@@ -51,12 +53,11 @@ class DecksPipeline:
     def open_spider(self, spider):
         makedirs(self.media_dir, exist_ok=True)
         makedirs(self.results_dir, exist_ok=True)
-        self.per_file = spider.settings.get("PER_FILE")
 
     def process_item(self, item, spider):
         card_counter = 0
         title = item.title
-        if not self.per_file:
+        if not spider.per_file:
             title = "Ankizlet::" + title
 
         deck = genanki.Deck(self._get_random_id(), title)
@@ -82,10 +83,11 @@ class DecksPipeline:
             ]
             note = genanki.Note(model=self.model, fields=note_fields)
             deck.add_note(note)
+            spider.crawler.signals.send_catch_log(signal=signalizers.card_saved)
 
         self.decks.append(deck)
 
-        if self.per_file:
+        if spider.per_file:
             title = re.sub(r'[\\/:"*?<>|]+', "", title)
             package = genanki.Package(self.decks)
             package.media_files = self.media_files
@@ -97,7 +99,7 @@ class DecksPipeline:
         return item
 
     def close_spider(self, spider):
-        if not self.per_file:
+        if not spider.per_file:
             package = genanki.Package(self.decks)
             package.media_files = self.media_files
             package.write_to_file(join(self.results_dir, "output.apkg"))

@@ -1,7 +1,5 @@
 BOT_NAME = "quizlet"
 
-PER_FILE = False
-
 LOG_LEVEL = "INFO"
 # LOG_FILE = "scrapy.log"
 

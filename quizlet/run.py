@@ -1,10 +1,7 @@
 import sys
 
-from scrapy import signals
-from scrapy.crawler import CrawlerProcess, CrawlerRunner
-from scrapy.utils.log import configure_logging
+from scrapy import signals, Request
 from scrapy.utils.project import get_project_settings
-from twisted.internet import reactor
 from pydispatch import dispatcher
 from scrapy.crawler import CrawlerRunner
 from scrapy.utils.log import configure_logging
@@ -15,13 +12,15 @@ from PyQt5.QtGui import QTextCursor
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QHBoxLayout, QLabel,
                              QMainWindow, QPushButton, QTextEdit, QVBoxLayout,
                              QWidget)
+from twisted.internet.defer import inlineCallbacks
 
+from quizlet import signalizers
 from quizlet.spiders.cards import CardsSpider
 
 
 class ScrapyWorker(QtCore.QObject):
     update_button = QtCore.pyqtSignal(list)
-    update_label = QtCore.pyqtSignal(list)
+    update_label = QtCore.pyqtSignal(str, bool)
     request_signal = QtCore.pyqtSignal()
     args = QtCore.pyqtSignal(list)
     update_log = QtCore.pyqtSignal(str)
@@ -41,16 +40,43 @@ class ScrapyWorker(QtCore.QObject):
 
     def run_process(self, urls, per_file):
         self.update_button.emit(["In progress...", False])
+        self.clear_log.emit()
+        self.update_label.emit("saved", False)
+        self.update_label.emit("wrong", False)
+        self.update_label.emit("timeout", False)
+        self.update_label.emit("invalid", False)
+        self.update_label.emit("card", False)
 
-        def deck_name(signal, sender, item, response, spider):
-            print(item.title)  # TODO: это должен быть сингал в GUI
+        def saved(signal, sender, item, response, spider):
+            self.update_log.emit(item.title + " "*10 + "...saved")
+            self.update_label.emit("saved", True)
 
-        configure_logging({"LOG_FORMAT": "%(levelname)s: %(message)s"})
-        dispatcher.connect(deck_name, signal=signals.item_scraped)  # TODO: нужны сигналы для подсчета колод и карт
+        def wrong_pass(request: Request):
+            self.update_log.emit(request.url + " "*10 + "...wrong password")
+            self.update_label.emit("wrong", True)
+
+        def invalid_url(url: str):
+            self.update_log.emit(url + " "*10 + "...invalid URL")
+            self.update_label.emit("invalid", True)
+
+        def timeout_url(request: Request):
+            self.update_log.emit(request.url + " "*10 + "...timeout")
+            self.update_label.emit("timeout", True)
+
+        def card_saved():
+            self.update_label.emit("card", True)
+
+        dispatcher.connect(saved, signals.item_scraped)
+        dispatcher.connect(wrong_pass, signalizers.wrong_pass)
+        dispatcher.connect(invalid_url, signalizers.invalid_url)
+        dispatcher.connect(timeout_url, signalizers.timeout_url)
+        dispatcher.connect(card_saved, signalizers.card_saved)
+
         runner = CrawlerRunner(get_project_settings())
+        configure_logging({"LOG_FORMAT": "%(levelname)s: %(message)s"})
+        d = runner.crawl(CardsSpider, urls=urls, per_file=per_file)
 
-        d = runner.crawl(CardsSpider, urls=urls)  # TODO: нужно переделать в пауке PER_FILE в локальную переменную
-        d.addBoth(lambda _: reactor.stop())
+        d.addBoth(lambda _: reactor.iterate())
         reactor.run(installSignalHandlers=False)
 
         self.update_button.emit(["Start", True])
@@ -106,19 +132,15 @@ class ScrapyGUI(QMainWindow):
         self.deck_wrongpass_label = QLabel("Wrong password: 0", self)
         self.deck_incorrect_count = 0
         self.deck_incorrect_label = QLabel("Invalid URL: 0", self)
-
-        self.log_states = {  # TODO: это нафиг
-            "Saved: ": [self.deck_saved_count, self.deck_saved_label],
-            "Timeout: ": [self.deck_timeout_count, self.deck_timeout_label],
-            "Wrong password: ": [self.deck_wrongpass_count,
-                                 self.deck_wrongpass_label]
-        }
+        self.cards_count = 0
+        self.cards_label = QLabel("Cards: 0", self)
 
         horizontal_layout = QHBoxLayout()
         horizontal_layout.addWidget(self.deck_saved_label)
         horizontal_layout.addWidget(self.deck_timeout_label)
         horizontal_layout.addWidget(self.deck_wrongpass_label)
         horizontal_layout.addWidget(self.deck_incorrect_label)
+        horizontal_layout.addWidget(self.cards_label)
 
         layout = QVBoxLayout()
         layout.addWidget(self.url_textedit)
@@ -150,19 +172,28 @@ class ScrapyGUI(QMainWindow):
         self.start_button.setText(button_list[0])
         self.start_button.setEnabled(button_list[1])
 
-    @QtCore.pyqtSlot(list)
-    def updateLabel(self, state):  # TODO: все переделать под сигналы с воркера
-        if state[1]:
-            self.log_states[state[0]][0] += 1
-        else:
-            self.log_states[state[0]][0] = 0
-        self.log_states[state[0]][1].setText(
-            f"{state[0]}{self.log_states[state[0]][0]}")
+    @QtCore.pyqtSlot(str, bool)
+    def updateLabel(self, label, state):
+        if label == "saved":
+            self.deck_saved_count += 1 if state else 0
+            self.deck_saved_label.setText(f"Saved: {self.deck_saved_count}")
+        elif label == "timeout":
+            self.deck_timeout_count += 1 if state else 0
+            self.deck_timeout_label.setText(f"Timeout: {self.deck_timeout_count}")
+        elif label == "wrong":
+            self.deck_wrongpass_count += 1 if state else 0
+            self.deck_wrongpass_label.setText(f"Wrong password: {self.deck_wrongpass_count}")
+        elif label == "invalid":
+            self.deck_incorrect_count += 1 if state else 0
+            self.deck_incorrect_label.setText(f"Invalid URL: {self.deck_incorrect_count}")
+        elif label == "card":
+            self.cards_count += 1 if state else 0
+            self.cards_label.setText(f"Cards: {self.cards_count}")
 
     @QtCore.pyqtSlot(str)
     def updateLog(self, text: str):
         self.log_textedit.moveCursor(QTextCursor.End)
-        self.log_textedit.insertPlainText(text)
+        self.log_textedit.insertPlainText(text + "\n")
 
     @QtCore.pyqtSlot()
     def clearLog(self):

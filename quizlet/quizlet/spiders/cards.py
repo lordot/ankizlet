@@ -6,17 +6,19 @@ import undetected_chromedriver as uc
 import validators
 from scrapy.http import Response
 
+from quizlet import signalizers
 from quizlet.items import Card, Deck
 
 
 class CardsSpider(scrapy.Spider):
     name = "cards"
 
-    def __init__(self, urls: Generator | Iterator, **kwargs):
+    def __init__(self, urls: Generator | Iterator, per_file: bool = False, **kwargs):
         super().__init__(**kwargs)
         self.driver = uc.Chrome(headless=True, use_subprocess=True)
         self.logger.info("Chrome driver is opened")
         self.urls = urls
+        self.per_file = per_file
 
     def start_requests(self):
         for row in self.urls:
@@ -31,6 +33,8 @@ class CardsSpider(scrapy.Spider):
                     url, self.parse, cb_kwargs=dict(password=password)
                 )
             else:
+                self.crawler.signals.send_catch_log(
+                    signal=signalizers.invalid_url, url=url)
                 self.logger.error(f"Invalid URL: {url}")
 
     def parse(self, response: Response, **kwargs):

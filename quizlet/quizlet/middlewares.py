@@ -1,4 +1,5 @@
 import re
+import signal
 
 import scrapy.http
 from scrapy import signals
@@ -10,6 +11,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.wait import WebDriverWait
+
+from quizlet import signalizers
 
 API_URL = ("https://quizlet.com/webapi/3.9/"
            "studiable-item-documents?filters%5BstudiableContainerId%5D={}"
@@ -65,13 +68,15 @@ class SeleniumMiddleware:
             )
 
             if label and label[0].get_attribute('aria-invalid'):
-                spider.logger.error(f"Wrong password: {request.url}")
+                spider.logger.error(f"Empty password: {request.url}")
             elif label:
-                spider.logger.error(
-                    f"Wrong password: {request.url}")
+                spider.logger.error(f"Wrong password: {request.url}")
+                spider.crawler.signals.send_catch_log(
+                    signal=signalizers.wrong_pass, request=request)
             else:
-                spider.logger.error(
-                    f"Timeout: {request.url}")
+                spider.logger.error(f"Timeout: {request.url}")
+                spider.crawler.signals.send_catch_log(
+                    signal=signalizers.timeout_url, request=request)
             raise IgnoreRequest()
 
     def process_response(self, request: scrapy.Request, response, spider):
