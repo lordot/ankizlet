@@ -5,7 +5,7 @@ from scrapy.utils.project import get_project_settings
 from pydispatch import dispatcher
 from scrapy.crawler import CrawlerRunner
 from scrapy.utils.log import configure_logging
-from twisted.internet import reactor
+from twisted.internet import reactor, defer, threads
 
 from PyQt5 import QtCore
 from PyQt5.QtGui import QTextCursor
@@ -74,24 +74,40 @@ class ScrapyWorker(QtCore.QObject):
 
         runner = CrawlerRunner(get_project_settings())
         configure_logging({"LOG_FORMAT": "%(levelname)s: %(message)s"})
+
         d = runner.crawl(CardsSpider, urls=urls, per_file=per_file)
 
-        d.addBoth(lambda _: reactor.iterate())
-        reactor.run(installSignalHandlers=False)
+        def __succeedHandler(result):
+            self.update_button.emit(["Start", True])
 
-        self.update_button.emit(["Start", True])
+        def __errorHandler(failure):
+            print(failure)
+            self.update_button.emit(["Start", True])
+
+        d.addCallback(__succeedHandler)
+        d.addErrback(__errorHandler)
+
+        if not reactor.running:
+            reactor.run(installSignalHandlers=False)
 
 
 class ScrapyGUI(QMainWindow):
 
     def __init__(self, parent=None):
         super(ScrapyGUI, self).__init__()
+        self.thread = None
+        self.worker = None
+        self.init_ui()
 
-        thread = QtCore.QThread(self)
-        thread.start()
+    def start_thread(self):
+        if self.thread:
+            self.worker.doWork()
+
+        self.thread = QtCore.QThread(self)
+        self.thread.start()
 
         self.worker = ScrapyWorker()
-        self.worker.moveToThread(thread)
+        self.worker.moveToThread(self.thread)
 
         self.worker.update_button.connect(self.updateButton)
         self.worker.update_label.connect(self.updateLabel)
@@ -99,7 +115,7 @@ class ScrapyGUI(QMainWindow):
         self.worker.update_log.connect(self.updateLog)
         self.worker.clear_log.connect(self.clearLog)
 
-        self.init_ui()
+        self.worker.doWork()
 
     def init_ui(self):
         screen_size = QApplication.primaryScreen().availableSize()
@@ -122,7 +138,7 @@ class ScrapyGUI(QMainWindow):
         self.start_button = QPushButton('Start', self)
         self.start_button.setEnabled(False)
 
-        self.start_button.clicked.connect(self.worker.doWork)
+        self.start_button.clicked.connect(self.start_thread)
 
         self.deck_saved_count = 0
         self.deck_saved_label = QLabel("Saved: 0", self)

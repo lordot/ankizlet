@@ -67,9 +67,7 @@ class SeleniumMiddleware:
                 By.CSS_SELECTOR, "label.UIInput"
             )
 
-            if label and label[0].get_attribute('aria-invalid'):
-                spider.logger.error(f"Empty password: {request.url}")
-            elif label:
+            if label:
                 spider.logger.error(f"Wrong password: {request.url}")
                 spider.crawler.signals.send_catch_log(
                     signal=signalizers.wrong_pass, request=request)

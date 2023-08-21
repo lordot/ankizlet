@@ -13,7 +13,8 @@ from quizlet.items import Card, Deck
 class CardsSpider(scrapy.Spider):
     name = "cards"
 
-    def __init__(self, urls: Generator | Iterator, per_file: bool = False, **kwargs):
+    def __init__(self, urls: Generator | Iterator = None, per_file: bool = False,
+                 **kwargs):
         super().__init__(**kwargs)
         self.driver = uc.Chrome(headless=True, use_subprocess=True)
         self.logger.info("Chrome driver is opened")
@@ -55,7 +56,8 @@ class CardsSpider(scrapy.Spider):
                          f"; total cards: {len(deck.cards)}")
         yield deck
 
-    def _create_card(self, item):  # TODO: добавить возможность отключать аудио с разных сторон
+    def _create_card(self,
+                     item):  # TODO: добавить возможность отключать аудио с разных сторон
         f_side = item["cardSides"][0]["media"][0]
         b_side = item["cardSides"][1]["media"][0]
         f_word = f_side["plainText"]
