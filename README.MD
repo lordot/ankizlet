@@ -20,7 +20,7 @@ To use Ankizlet, ensure you have **Python 3.10** or higher installed on your com
 
 1. Clone this repository using Git:
    ```sh
-   git clone https://github.com/your-username/ankizlet.git
+   git clone https://github.com/lordot/ankizlet.git
    cd ankizlet
 
 2. Create a virtual environment (recommended):
