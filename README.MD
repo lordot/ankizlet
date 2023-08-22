@@ -4,7 +4,7 @@ Ankizlet is an application that automates the conversion of flashcards from the 
 
 If you find Ankizlet useful and appreciate my work, you can show your support by buying me a coffee! [Buy Me a Coffee](https://www.buymeacoffee.com/lord0t)
 
-![](https://github.com/lordot/Ankizlet/example.jpg "GUI")
+![](https://github.com/lordot/ankizlet/blob/main/example.jpg)
 
 ## Features
 
@@ -20,7 +20,7 @@ To use Ankizlet, ensure you have **Python 3.10** or higher installed on your com
 
 1. Clone this repository using Git:
    ```sh
-   git clone https://github.com/your-username/ankizlet.git
+   git clone https://github.com/lordot/ankizlet.git
    cd ankizlet
 
 2. Create a virtual environment (recommended):
