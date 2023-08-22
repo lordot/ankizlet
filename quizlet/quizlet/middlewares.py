@@ -1,5 +1,4 @@
 import re
-import signal
 
 import scrapy.http
 from scrapy import signals
@@ -14,12 +13,11 @@ from selenium.webdriver.support.wait import WebDriverWait
 
 from quizlet import signalizers
 
-API_URL = ("https://quizlet.com/webapi/3.9/"
-           "studiable-item-documents?filters%5BstudiableContainerId%5D={}"
-           "&filters%5BstudiableContainerType%5D=1&perPage=1000&page=1")
-
 
 class SeleniumMiddleware:
+    api_url = ("https://quizlet.com/webapi/3.9/"
+               "studiable-item-documents?filters%5BstudiableContainerId%5D={}"
+               "&filters%5BstudiableContainerType%5D=1&perPage=1000&page=1")
     timeout = 6
 
     @classmethod
@@ -49,10 +47,12 @@ class SeleniumMiddleware:
                 spider.logger.error(f"No deck on URL: {request.url}")
                 raise IgnoreRequest()
 
-            spider.driver.get(API_URL.format(deck_id))
+            spider.driver.get(self.api_url.format(deck_id))
             data = spider.driver.find_element(By.TAG_NAME, "pre").text
 
-            spider.logger.info(f"Loaded API URL: {API_URL.format(deck_id)}")
+            spider.logger.info(
+                f"Loaded API URL: {self.api_url.format(deck_id)}"
+            )
 
             return HtmlResponse(
                 url=request.url,

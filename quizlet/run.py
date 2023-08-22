@@ -1,18 +1,16 @@
 import sys
 
-from scrapy import signals, Request
-from scrapy.utils.project import get_project_settings
 from pydispatch import dispatcher
-from scrapy.crawler import CrawlerRunner
-from scrapy.utils.log import configure_logging
-from twisted.internet import reactor, defer, threads
-
 from PyQt5 import QtCore
 from PyQt5.QtGui import QTextCursor
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QHBoxLayout, QLabel,
                              QMainWindow, QPushButton, QTextEdit, QVBoxLayout,
                              QWidget)
-from twisted.internet.defer import inlineCallbacks
+from scrapy import Request, signals
+from scrapy.crawler import CrawlerRunner
+from scrapy.utils.log import configure_logging
+from scrapy.utils.project import get_project_settings
+from twisted.internet import reactor
 
 from quizlet import signalizers
 from quizlet.spiders.cards import CardsSpider
@@ -36,9 +34,9 @@ class ScrapyWorker(QtCore.QObject):
 
     @QtCore.pyqtSlot(list)
     def get_args(self, args):
-        self.run_process(args[0], args[1])
+        self.run_process(args[0], args[1], args[2])
 
-    def run_process(self, urls, per_file):
+    def run_process(self, urls, per_file, turn):
         self.update_button.emit(["In progress...", False])
         self.clear_log.emit()
         self.update_label.emit("saved", False)
@@ -75,7 +73,7 @@ class ScrapyWorker(QtCore.QObject):
         runner = CrawlerRunner(get_project_settings())
         configure_logging({"LOG_FORMAT": "%(levelname)s: %(message)s"})
 
-        d = runner.crawl(CardsSpider, urls=urls, per_file=per_file)
+        d = runner.crawl(CardsSpider, urls=urls, per_file=per_file, turn=turn)
 
         def __succeedHandler(result):
             self.update_button.emit(["Start", True])
@@ -91,10 +89,10 @@ class ScrapyWorker(QtCore.QObject):
             reactor.run(installSignalHandlers=False)
 
 
-class ScrapyGUI(QMainWindow):
+class AnkizletGUI(QMainWindow):
 
     def __init__(self, parent=None):
-        super(ScrapyGUI, self).__init__()
+        super(AnkizletGUI, self).__init__()
         self.thread = None
         self.worker = None
         self.init_ui()
@@ -121,15 +119,17 @@ class ScrapyGUI(QMainWindow):
         screen_size = QApplication.primaryScreen().availableSize()
         self.resize(screen_size.width() // 2, screen_size.height() // 2)
 
-        self.setWindowTitle('Scrapy GUI')
+        self.setWindowTitle('Ankizlet')
 
         self.url_textedit = QTextEdit(self)
         self.url_textedit.setPlaceholderText(
-            "Enter URLs and passwords (if any) separated by space, "  # TODO: тут должен быть пример
-            "next URLs on new lines..."
+            "Enter URLs and passwords (if any) separated by space\n"
+            "Next URLs on new lines...\n\n"
+            "Example: https://quizlet.com/.... password"
         )
 
         self.deck_checkbox = QCheckBox("Deck per file", self)
+        self.turn_checkbox = QCheckBox("Turn cards", self)
 
         self.log_textedit = QTextEdit(self)
         self.log_textedit.setAcceptRichText(True)
@@ -161,6 +161,7 @@ class ScrapyGUI(QMainWindow):
         layout = QVBoxLayout()
         layout.addWidget(self.url_textedit)
         layout.addWidget(self.deck_checkbox)
+        layout.addWidget(self.turn_checkbox)
         layout.addWidget(self.log_textedit)
         layout.addWidget(self.start_button)
         layout.addLayout(horizontal_layout)
@@ -181,7 +182,8 @@ class ScrapyGUI(QMainWindow):
         urls = (url.split(" ") for url in urls if url != "")
 
         deck_per_file = self.deck_checkbox.isChecked()
-        self.worker.args.emit([urls, deck_per_file])
+        turn_cards = self.turn_checkbox.isChecked()
+        self.worker.args.emit([urls, deck_per_file, turn_cards])
 
     @QtCore.pyqtSlot(list)
     def updateButton(self, button_list):
@@ -192,16 +194,24 @@ class ScrapyGUI(QMainWindow):
     def updateLabel(self, label, state):
         if label == "saved":
             self.deck_saved_count += 1 if state else 0
-            self.deck_saved_label.setText(f"Saved: {self.deck_saved_count}")
+            self.deck_saved_label.setText(
+                f"Saved: {self.deck_saved_count}"
+            )
         elif label == "timeout":
             self.deck_timeout_count += 1 if state else 0
-            self.deck_timeout_label.setText(f"Timeout: {self.deck_timeout_count}")
+            self.deck_timeout_label.setText(
+                f"Timeout: {self.deck_timeout_count}"
+            )
         elif label == "wrong":
             self.deck_wrongpass_count += 1 if state else 0
-            self.deck_wrongpass_label.setText(f"Wrong password: {self.deck_wrongpass_count}")
+            self.deck_wrongpass_label.setText(
+                f"Wrong password: {self.deck_wrongpass_count}"
+            )
         elif label == "invalid":
             self.deck_incorrect_count += 1 if state else 0
-            self.deck_incorrect_label.setText(f"Invalid URL: {self.deck_incorrect_count}")
+            self.deck_incorrect_label.setText(
+                f"Invalid URL: {self.deck_incorrect_count}"
+            )
         elif label == "card":
             self.cards_count += 1 if state else 0
             self.cards_label.setText(f"Cards: {self.cards_count}")
@@ -218,6 +228,6 @@ class ScrapyGUI(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    window = ScrapyGUI()
+    window = AnkizletGUI()
     window.show()
     sys.exit(app.exec_())
