@@ -6,8 +6,8 @@ import undetected_chromedriver as uc
 import validators
 from scrapy.http import Response
 
-from quizlet import signalizers
-from quizlet.items import Card, Deck
+from ankizlet import signalizers
+from ankizlet.items import Card, Deck
 
 
 class CardsSpider(scrapy.Spider):

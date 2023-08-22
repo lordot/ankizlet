@@ -7,7 +7,7 @@ from os.path import dirname, join, realpath
 
 import genanki
 
-from quizlet import signalizers
+from ankizlet import signalizers
 
 
 class DecksPipeline:

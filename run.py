@@ -12,8 +12,8 @@ from scrapy.utils.log import configure_logging
 from scrapy.utils.project import get_project_settings
 from twisted.internet import reactor
 
-from quizlet import signalizers
-from quizlet.spiders.cards import CardsSpider
+from ankizlet import signalizers
+from ankizlet.spiders.cards import CardsSpider
 
 
 class ScrapyWorker(QtCore.QObject):

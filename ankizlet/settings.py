@@ -1,4 +1,4 @@
-BOT_NAME = "quizlet"
+BOT_NAME = "ankizlet"
 
 LOG_LEVEL = "INFO"
 # LOG_FILE = "scrapy.log"
@@ -6,18 +6,18 @@ LOG_LEVEL = "INFO"
 HTTPCACHE_ENABLED = False
 HTTPCACHE_EXPIRATION_SECS = 86400
 
-SPIDER_MODULES = ["quizlet.spiders"]
-NEWSPIDER_MODULE = "quizlet.spiders"
+SPIDER_MODULES = ["ankizlet.spiders"]
+NEWSPIDER_MODULE = "ankizlet.spiders"
 
 ROBOTSTXT_OBEY = True
 
 DOWNLOADER_MIDDLEWARES = {
    "scrapy.downloadermiddlewares.robotstxt.RobotsTxtMiddleware": None,
-   "quizlet.middlewares.SeleniumMiddleware": 543,
+   "ankizlet.middlewares.SeleniumMiddleware": 543,
 }
 
 ITEM_PIPELINES = {
-   "quizlet.pipelines.DecksPipeline": 300,
+   "ankizlet.pipelines.DecksPipeline": 300,
 }
 
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
