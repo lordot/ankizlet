@@ -4,7 +4,7 @@ Ankizlet is an application that automates the conversion of flashcards from the 
 
 If you find Ankizlet useful and appreciate my work, you can show your support by buying me a coffee! [Buy Me a Coffee](https://www.buymeacoffee.com/lord0t)
 
-![](https://github.com/lordot/Ankizlet/example.jpg "GUI")
+![](https://github.com/lordot/Ankizlet/example.jpg?raw=true)
 
 ## Features
 
