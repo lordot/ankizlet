@@ -163,3 +163,4 @@ cython_debug/
 .media/
 results/
 crawl.py
+setup.py
