@@ -162,4 +162,4 @@ cython_debug/
 *.xlsx
 .media/
 results/
-/quizlet/setup.py
+crawl.py

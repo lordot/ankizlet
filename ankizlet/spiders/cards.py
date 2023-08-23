@@ -21,7 +21,11 @@ class CardsSpider(scrapy.Spider):
             **kwargs
     ):
         super().__init__(**kwargs)
-        self.driver = uc.Chrome(headless=True, use_subprocess=True)
+        self.driver = uc.Chrome(
+            headless=True,
+            use_subprocess=True,
+            driver_executable_path="chromedriver-win64/chromedriver.exe"
+        )
         self.logger.info("Chrome driver is opened")
         self.urls = urls
         self.per_file = per_file
