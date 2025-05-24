@@ -52,7 +52,7 @@ class DecksPipeline:
             for audio_type in ("f_audio", "b_audio"):
                 if getattr(card, audio_type) != "":
                     audio_name = self._file_download(
-                        self.audio_prefix + getattr(card, audio_type), spider,
+                        getattr(card, audio_type), spider,
                         ".mp3"
                     )
                     if audio_name:

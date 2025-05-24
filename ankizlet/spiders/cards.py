@@ -22,7 +22,7 @@ class CardsSpider(scrapy.Spider):
     ):
         super().__init__(**kwargs)
         self.driver = uc.Chrome(
-            headless=True,
+            headless=False,
             use_subprocess=True,
             driver_executable_path="chromedriver-win64/chromedriver.exe"
         )
